@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - FastAPI User Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input.error {
+            border-color: #e74c3c;
+        }
+
+        input.success {
+            border-color: #27ae60;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .links {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        button.loading .button-text {
+            display: none;
+        }
+
+        button.loading .loading-spinner {
+            display: block;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .forgot-password {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome Back</h1>
+        <p class="subtitle">Login to your account</p>
+
+        <div id="alertContainer"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username or Email</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required
+                    autocomplete="username"
+                    placeholder="Enter your username or email"
+                >
+                <div class="error-message" id="usernameError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required
+                    autocomplete="current-password"
+                    placeholder="Enter your password"
+                >
+                <div class="error-message" id="passwordError"></div>
+            </div>
+
+            <div class="remember-forgot">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe" name="rememberMe">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-password">Forgot password?</a>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                <span class="button-text">Login</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </form>
+
+        <div class="links">
+            Don't have an account? <a href="register.html">Register here</a>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const rememberMeCheckbox = document.getElementById('rememberMe');
+        const submitBtn = document.getElementById('submitBtn');
+        const alertContainer = document.getElementById('alertContainer');
+
+        // Error message elements
+        const usernameError = document.getElementById('usernameError');
+        const passwordError = document.getElementById('passwordError');
+
+        // Validation functions
+        function validateUsername(username) {
+            return username.trim().length > 0;
+        }
+
+        function validatePassword(password) {
+            return password.length > 0;
+        }
+
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            element.previousElementSibling.classList.add('error');
+        }
+
+        function hideError(element) {
+            element.classList.remove('show');
+            element.previousElementSibling.classList.remove('error');
+            element.previousElementSibling.classList.remove('success');
+        }
+
+        function showSuccess(input) {
+            input.classList.add('success');
+            input.classList.remove('error');
+        }
+
+        function showAlert(message, type = 'info') {
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type} show">
+                    ${message}
+                </div>
+            `;
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    alertContainer.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // Real-time validation
+        usernameInput.addEventListener('input', function() {
+            hideError(usernameError);
+            if (this.value.length > 0) {
+                showSuccess(this);
+            }
+        });
+
+        passwordInput.addEventListener('input', function() {
+            hideError(passwordError);
+            if (this.value.length > 0) {
+                showSuccess(this);
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Clear previous alerts
+            alertContainer.innerHTML = '';
+
+            // Validate fields
+            let isValid = true;
+
+            if (!validateUsername(usernameInput.value)) {
+                showError(usernameError, 'Please enter your username or email');
+                isValid = false;
+            }
+
+            if (!validatePassword(passwordInput.value)) {
+                showError(passwordError, 'Please enter your password');
+                isValid = false;
+            }
+
+            if (!isValid) {
+                showAlert('Please fill in all required fields', 'error');
+                return;
+            }
+
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
+
+            // Prepare data
+            const loginData = {
+                username: usernameInput.value.trim(),
+                password: passwordInput.value
+            };
+
+            try {
+                // Send login request
+                const response = await fetch('/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Login successful
+                    showAlert('Login successful! Redirecting...', 'success');
+                    
+                    // Store JWT token
+                    const storage = rememberMeCheckbox.checked ? localStorage : sessionStorage;
+                    storage.setItem('access_token', data.access_token);
+                    storage.setItem('token_type', data.token_type);
+                    storage.setItem('user', JSON.stringify(data.user));
+
+                    // Log token info (for development)
+                    console.log('JWT Token stored:', data.access_token);
+                    console.log('User info:', data.user);
+                    console.log('Storage type:', rememberMeCheckbox.checked ? 'localStorage' : 'sessionStorage');
+
+                    // Redirect to dashboard/home page after 1 second
+                    setTimeout(() => {
+                        window.location.href = '/';  // Change to your dashboard page
+                    }, 1000);
+                } else {
+                    // Login failed
+                    let errorMessage = 'Login failed. Please check your credentials.';
+                    
+                    if (data.detail) {
+                        if (typeof data.detail === 'string') {
+                            errorMessage = data.detail;
+                        } else if (Array.isArray(data.detail)) {
+                            errorMessage = data.detail.map(err => err.msg).join(', ');
+                        }
+                    }
+
+                    showAlert(errorMessage, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('loading');
+
+                    // Clear password field on failed login
+                    passwordInput.value = '';
+                    hideError(passwordError);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('Network error. Please check your connection and try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
+        });
+
+        // Check if user is already logged in
+        function checkExistingAuth() {
+            const localToken = localStorage.getItem('access_token');
+            const sessionToken = sessionStorage.getItem('access_token');
+            
+            if (localToken || sessionToken) {
+                showAlert('You are already logged in!', 'info');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            }
+        }
+
+        checkExistingAuth();
+
+        // Handle "forgot password" click
+        document.querySelector('.forgot-password').addEventListener('click', function(e) {
+            e.preventDefault();
+            showAlert('Password reset functionality coming soon!', 'info');
+        });
+    </script>
+</body>
+</html>
