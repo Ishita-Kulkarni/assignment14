@@ -71,6 +71,36 @@ class TestUserRegistration:
         assert "id" in data
         assert "created_at" in data
     
+    def test_register_user_db_verification(self):
+        """Test that registration actually stores data in database."""
+        # Register user
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "dbuser",
+                "email": "dbuser@example.com",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 201
+        user_id = response.json()["id"]
+        
+        # Verify data in database
+        db = TestingSessionLocal()
+        user = db.query(User).filter(User.id == user_id).first()
+        
+        assert user is not None
+        assert user.username == "dbuser"
+        assert user.email == "dbuser@example.com"
+        assert user.is_active is True
+        assert user.password_hash is not None
+        assert user.password_hash != "password123"  # Should be hashed
+        assert user.password_hash.startswith("$2b$")  # bcrypt format
+        assert user.created_at is not None
+        assert user.updated_at is not None
+        
+        db.close()
+    
     def test_register_duplicate_username(self):
         """Test that duplicate username is rejected."""
         # Register first user
@@ -184,6 +214,53 @@ class TestUserLogin:
         assert "message" in data
         assert "user" in data
         assert data["user"]["username"] == "testuser"
+    
+    def test_login_db_verification(self):
+        """Test that login validates against database."""
+        # Register user
+        reg_response = client.post(
+            "/users/register",
+            json={
+                "username": "loginuser",
+                "email": "loginuser@example.com",
+                "password": "securepass123"
+            }
+        )
+        user_id = reg_response.json()["id"]
+        
+        # Verify user exists in DB
+        db = TestingSessionLocal()
+        user_before_login = db.query(User).filter(User.id == user_id).first()
+        assert user_before_login is not None
+        password_hash_before = user_before_login.password_hash
+        db.close()
+        
+        # Login successfully
+        login_response = client.post(
+            "/users/login",
+            json={
+                "username": "loginuser",
+                "password": "securepass123"
+            }
+        )
+        assert login_response.status_code == 200
+        assert "access_token" in login_response.json()
+        
+        # Verify password hash hasn't changed (login doesn't modify it)
+        db = TestingSessionLocal()
+        user_after_login = db.query(User).filter(User.id == user_id).first()
+        assert user_after_login.password_hash == password_hash_before
+        db.close()
+        
+        # Try login with wrong password
+        wrong_pass_response = client.post(
+            "/users/login",
+            json={
+                "username": "loginuser",
+                "password": "wrongpassword"
+            }
+        )
+        assert wrong_pass_response.status_code == 401
     
     def test_login_with_email(self):
         """Test login using email instead of username."""

@@ -95,6 +95,38 @@ class TestCalculationAdd:
         assert "user_id" in data
         assert "created_at" in data
     
+    def test_add_calculation_db_verification(self, authenticated_user):
+        """Test that calculation is actually stored in database."""
+        calc_data = {
+            "a": 25.0,
+            "b": 10.0,
+            "type": "multiply"
+        }
+        
+        response = client.post(
+            "/calculations",
+            json=calc_data,
+            headers=authenticated_user
+        )
+        
+        assert response.status_code == 201
+        calc_id = response.json()["id"]
+        user_id = response.json()["user_id"]
+        
+        # Verify data in database
+        db = TestingSessionLocal()
+        calc = db.query(Calculation).filter(Calculation.id == calc_id).first()
+        
+        assert calc is not None
+        assert calc.a == 25.0
+        assert calc.b == 10.0
+        assert calc.type == "multiply"
+        assert calc.result == 250.0
+        assert calc.user_id == user_id
+        assert calc.created_at is not None
+        
+        db.close()
+    
     def test_add_calculation_subtract(self, authenticated_user):
         """Test subtraction calculation."""
         calc_data = {
@@ -226,9 +258,33 @@ class TestCalculationBrowse:
         # Should be ordered by created_at desc (newest first)
         # But in fast execution, ordering might vary, so just check all exist
         types = [calc["type"] for calc in data]
-        assert "add" in types
-        assert "subtract" in types
-        assert "multiply" in types
+    
+    def test_browse_calculations_db_verification(self, authenticated_user):
+        """Test that browse returns data matching database."""
+        # Create calculations
+        created_ids = []
+        for i in range(3):
+            calc_data = {"a": i + 1, "b": 2, "type": "add"}
+            response = client.post("/calculations", json=calc_data, headers=authenticated_user)
+            created_ids.append(response.json()["id"])
+        
+        # Get via API
+        api_response = client.get("/calculations", headers=authenticated_user)
+        assert api_response.status_code == 200
+        api_calcs = api_response.json()
+        
+        # Verify against database
+        db = TestingSessionLocal()
+        db_calcs = db.query(Calculation).filter(Calculation.id.in_(created_ids)).all()
+        
+        assert len(api_calcs) == len(db_calcs) == 3
+        
+        # Check that all DB calculations appear in API response
+        db_ids = {calc.id for calc in db_calcs}
+        api_ids = {calc["id"] for calc in api_calcs}
+        assert db_ids == api_ids
+        
+        db.close()
     
     def test_browse_calculations_pagination(self, authenticated_user):
         """Test pagination in browse."""
@@ -386,6 +442,42 @@ class TestCalculationEdit:
         assert data["type"] == "multiply"
         assert data["result"] == 60
     
+    def test_edit_calculation_db_verification(self, authenticated_user):
+        """Test that updates are persisted to database."""
+        # Create a calculation
+        create_response = client.post(
+            "/calculations",
+            json={"a": 100, "b": 25, "type": "divide"},
+            headers=authenticated_user
+        )
+        calc_id = create_response.json()["id"]
+        
+        # Verify initial state in DB
+        db = TestingSessionLocal()
+        calc_before = db.query(Calculation).filter(Calculation.id == calc_id).first()
+        assert calc_before.a == 100
+        assert calc_before.b == 25
+        assert calc_before.result == 4.0
+        db.close()
+        
+        # Update via API
+        update_data = {"a": 50, "b": 10, "type": "subtract"}
+        response = client.put(
+            f"/calculations/{calc_id}",
+            json=update_data,
+            headers=authenticated_user
+        )
+        assert response.status_code == 200
+        
+        # Verify update persisted to DB
+        db = TestingSessionLocal()
+        calc_after = db.query(Calculation).filter(Calculation.id == calc_id).first()
+        assert calc_after.a == 50
+        assert calc_after.b == 10
+        assert calc_after.type == "subtract"
+        assert calc_after.result == 40.0
+        db.close()
+    
     def test_edit_calculation_patch_success(self, authenticated_user):
         """Test updating a calculation with PATCH."""
         # Create a calculation
@@ -503,6 +595,35 @@ class TestCalculationDelete:
         )
         assert get_response.status_code == 404
     
+    def test_delete_calculation_db_verification(self, authenticated_user):
+        """Test that deletion removes data from database."""
+        # Create a calculation
+        create_response = client.post(
+            "/calculations",
+            json={"a": 99, "b": 11, "type": "add"},
+            headers=authenticated_user
+        )
+        calc_id = create_response.json()["id"]
+        
+        # Verify it exists in DB
+        db = TestingSessionLocal()
+        calc_before = db.query(Calculation).filter(Calculation.id == calc_id).first()
+        assert calc_before is not None
+        db.close()
+        
+        # Delete via API
+        response = client.delete(
+            f"/calculations/{calc_id}",
+            headers=authenticated_user
+        )
+        assert response.status_code == 200
+        
+        # Verify it's removed from DB
+        db = TestingSessionLocal()
+        calc_after = db.query(Calculation).filter(Calculation.id == calc_id).first()
+        assert calc_after is None
+        db.close()
+    
     def test_delete_calculation_not_found(self, authenticated_user):
         """Test deleting non-existent calculation."""
         response = client.delete(
@@ -543,3 +664,236 @@ class TestCalculationDelete:
         response = client.delete(f"/calculations/{calc_id}", headers=user2_token)
         
         assert response.status_code == 404
+
+
+class TestInvalidDataAndErrors:
+    """Test invalid inputs, error status codes, and error responses."""
+    
+    def test_invalid_calculation_type(self, authenticated_user):
+        """Test that invalid operation type returns 422."""
+        calc_data = {
+            "a": 10.0,
+            "b": 5.0,
+            "type": "power"  # Invalid operation
+        }
+        
+        response = client.post(
+            "/calculations",
+            json=calc_data,
+            headers=authenticated_user
+        )
+        
+        assert response.status_code == 422
+        error = response.json()
+        assert "detail" in error
+    
+    def test_missing_required_fields(self, authenticated_user):
+        """Test that missing required fields returns 422."""
+        # Missing 'b' field
+        calc_data = {
+            "a": 10.0,
+            "type": "add"
+        }
+        
+        response = client.post(
+            "/calculations",
+            json=calc_data,
+            headers=authenticated_user
+        )
+        
+        assert response.status_code == 422
+        error = response.json()
+        assert "detail" in error
+    
+    def test_invalid_data_types(self, authenticated_user):
+        """Test that invalid data types return 422."""
+        # String instead of number
+        calc_data = {
+            "a": "not_a_number",
+            "b": 5.0,
+            "type": "add"
+        }
+        
+        response = client.post(
+            "/calculations",
+            json=calc_data,
+            headers=authenticated_user
+        )
+        
+        assert response.status_code == 422
+        error = response.json()
+        assert "detail" in error
+    
+    def test_division_by_zero_error_response(self, authenticated_user):
+        """Test detailed error response for division by zero."""
+        calc_data = {
+            "a": 100.0,
+            "b": 0.0,
+            "type": "divide"
+        }
+        
+        response = client.post(
+            "/calculations",
+            json=calc_data,
+            headers=authenticated_user
+        )
+        
+        assert response.status_code == 422
+        error = response.json()
+        assert "detail" in error
+        # Verify error message contains useful information
+        error_str = str(error).lower()
+        assert "division by zero" in error_str or "divide" in error_str
+    
+    def test_unauthorized_access_error(self):
+        """Test that accessing protected endpoints without auth returns 403."""
+        # Try to create calculation without auth
+        response = client.post(
+            "/calculations",
+            json={"a": 10, "b": 5, "type": "add"}
+        )
+        assert response.status_code == 403
+        
+        # Try to browse calculations without auth
+        response = client.get("/calculations")
+        assert response.status_code == 403
+        
+        # Try to read calculation without auth
+        response = client.get("/calculations/1")
+        assert response.status_code == 403
+        
+        # Try to update calculation without auth
+        response = client.put("/calculations/1", json={"a": 1})
+        assert response.status_code == 403
+        
+        # Try to delete calculation without auth
+        response = client.delete("/calculations/1")
+        assert response.status_code == 403
+    
+    def test_not_found_errors(self, authenticated_user):
+        """Test that accessing non-existent resources returns 404."""
+        # Non-existent calculation ID
+        response = client.get("/calculations/999999", headers=authenticated_user)
+        assert response.status_code == 404
+        error = response.json()
+        assert "detail" in error
+        
+        # Update non-existent
+        response = client.put(
+            "/calculations/999999",
+            json={"a": 1, "b": 1, "type": "add"},
+            headers=authenticated_user
+        )
+        assert response.status_code == 404
+        
+        # Delete non-existent
+        response = client.delete("/calculations/999999", headers=authenticated_user)
+        assert response.status_code == 404
+    
+    def test_user_registration_errors(self):
+        """Test various user registration validation errors."""
+        # Invalid email format
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "testuser",
+                "email": "not_an_email",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 422
+        
+        # Password too short
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "testuser",
+                "email": "test@example.com",
+                "password": "123"
+            }
+        )
+        assert response.status_code == 422
+        
+        # Username too short
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "ab",
+                "email": "test@example.com",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 422
+    
+    def test_duplicate_user_errors(self):
+        """Test error responses for duplicate username/email."""
+        # Register first user
+        client.post(
+            "/users/register",
+            json={
+                "username": "uniqueuser",
+                "email": "unique@example.com",
+                "password": "password123"
+            }
+        )
+        
+        # Try duplicate username
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "uniqueuser",
+                "email": "different@example.com",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 400
+        error = response.json()
+        assert "detail" in error
+        assert "already registered" in error["detail"].lower()
+        
+        # Try duplicate email
+        response = client.post(
+            "/users/register",
+            json={
+                "username": "differentuser",
+                "email": "unique@example.com",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 400
+        error = response.json()
+        assert "already registered" in error["detail"].lower()
+    
+    def test_login_errors(self):
+        """Test login error responses."""
+        # Register user
+        client.post(
+            "/users/register",
+            json={
+                "username": "logintest",
+                "email": "logintest@example.com",
+                "password": "correctpassword"
+            }
+        )
+        
+        # Wrong password
+        response = client.post(
+            "/users/login",
+            json={
+                "username": "logintest",
+                "password": "wrongpassword"
+            }
+        )
+        assert response.status_code == 401
+        error = response.json()
+        assert "detail" in error
+        
+        # Non-existent user
+        response = client.post(
+            "/users/login",
+            json={
+                "username": "nonexistent",
+                "password": "password123"
+            }
+        )
+        assert response.status_code == 401
