@@ -1,9 +1,9 @@
-pytest==7.4.3
-pytest-asyncio==0.21.1
+bcrypt==4.0.1
 httpx==0.25.1
 playwright==1.40.0
-pytest-playwright==0.4.3
-pytest-cov==4.1.0
-sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-bcrypt==4.0.1
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-playwright==0.4.3
+sqlalchemy==2.0.23

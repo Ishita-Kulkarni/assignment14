@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.egg
+*.egg-info/
+.installed.cfg
 .Python
 build/
 develop-eggs/
@@ -16,9 +19,6 @@ parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # Virtual Environment
 venv/
@@ -26,6 +26,30 @@ env/
 ENV/
 env.bak/
 venv.bak/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Environment Variables
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Logs
+logs/
+*.log
+
+# Node.js
+node_modules/
 
 # IDE
 .vscode/
@@ -37,29 +61,3 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-data/
-
-# Environment variables
-.env
-
-# Logs
-logs/
-*.log
-
-# Node.js
-node_modules/
-
-# Playwright
-/test-results/
-/playwright-report/
-/playwright/.cache/
