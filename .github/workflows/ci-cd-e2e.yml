@@ -144,6 +144,14 @@ jobs:
         # Wait for server to be ready
         timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || exit 1
         echo "FastAPI server is ready"
+        # Give it a bit more time to fully initialize
+        sleep 2
+    
+    - name: Verify server is responding
+      run: |
+        curl -v http://localhost:8000/health
+        curl -v http://localhost:8000/static/register.html || true
+        curl -v http://localhost:8000/static/login.html || true
     
     - name: Run Playwright tests
       run: npm test
