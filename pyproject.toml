@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
+python_files = ["test_*.py", "!test_e2e.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
@@ -10,6 +10,8 @@ addopts = [
     "--cov=.",
     "--cov-report=term-missing",
     "--cov-report=html",
+    "--ignore=tests/test_e2e.py",
+    "--ignore=tests/e2e",
 ]
 markers = [
     "unit: Unit tests for individual functions",

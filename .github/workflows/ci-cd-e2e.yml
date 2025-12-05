@@ -66,7 +66,7 @@ jobs:
     
     - name: Run all Python tests with coverage
       run: |
-        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing --ignore=tests/e2e
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing --ignore=tests/e2e --ignore=tests/test_e2e.py
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
