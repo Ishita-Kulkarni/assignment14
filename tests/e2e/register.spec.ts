@@ -136,9 +136,9 @@ test.describe('Registration - Positive Tests', () => {
 
     await page.click('button[type="submit"]');
 
-    // Wait for redirect (1.5 seconds according to the code)
-    await page.waitForURL('/', { timeout: 3000 });
-    expect(page.url()).toContain('/');
+    // Wait for redirect to calculations page (1.5 seconds according to the code)
+    await page.waitForURL('**/calculations.html', { timeout: 3000 });
+    expect(page.url()).toContain('/calculations.html');
   });
 });
 

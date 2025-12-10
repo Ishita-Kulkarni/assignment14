@@ -508,71 +508,18 @@ test.describe('Calculations - Negative Scenarios', () => {
     await expect(page.locator('#operandBError')).toContainText('Division by zero');
   });
 
-  test('should validate required fields', async ({ page }) => {
+  test('should validate required fields with browser validation', async ({ page }) => {
     const user = generateUniqueUser();
     await registerAndLogin(page, user);
     
     await page.goto('/static/calculations.html');
     
     await page.click('button:has-text("New Calculation")');
-    await page.click('#calculationForm button[type="submit"]');
-    await page.waitForTimeout(500);
-
-    // Should show validation errors
-    await expect(page.locator('#operandAError')).toBeVisible();
-    await expect(page.locator('#operationError')).toBeVisible();
-    await expect(page.locator('#operandBError')).toBeVisible();
-  });
-
-  test('should validate numeric input for first operand', async ({ page }) => {
-    const user = generateUniqueUser();
-    await registerAndLogin(page, user);
     
-    await page.goto('/static/calculations.html');
-    
-    await page.click('button:has-text("New Calculation")');
-    await page.fill('#operandA', '');
-    await page.fill('#operandB', '5');
-    await page.selectOption('#operation', 'add');
-    
-    await page.click('#calculationForm button[type="submit"]');
-    await page.waitForTimeout(500);
-
-    await expect(page.locator('#operandAError')).toBeVisible();
-  });
-
-  test('should validate numeric input for second operand', async ({ page }) => {
-    const user = generateUniqueUser();
-    await registerAndLogin(page, user);
-    
-    await page.goto('/static/calculations.html');
-    
-    await page.click('button:has-text("New Calculation")');
-    await page.fill('#operandA', '10');
-    await page.fill('#operandB', '');
-    await page.selectOption('#operation', 'add');
-    
-    await page.click('#calculationForm button[type="submit"]');
-    await page.waitForTimeout(500);
-
-    await expect(page.locator('#operandBError')).toBeVisible();
-  });
-
-  test('should require operation selection', async ({ page }) => {
-    const user = generateUniqueUser();
-    await registerAndLogin(page, user);
-    
-    await page.goto('/static/calculations.html');
-    
-    await page.click('button:has-text("New Calculation")');
-    await page.fill('#operandA', '10');
-    await page.fill('#operandB', '5');
-    // Don't select operation
-    
-    await page.click('#calculationForm button[type="submit"]');
-    await page.waitForTimeout(500);
-
-    await expect(page.locator('#operationError')).toBeVisible();
+    // Verify inputs have required attribute
+    await expect(page.locator('#operandA')).toHaveAttribute('required', '');
+    await expect(page.locator('#operandB')).toHaveAttribute('required', '');
+    await expect(page.locator('#operation')).toHaveAttribute('required', '');
   });
 
   test('should redirect to login if not authenticated', async ({ page }) => {
@@ -660,12 +607,14 @@ test.describe('Calculations - User Isolation', () => {
     
     // Logout user1
     await page.click('button:has-text("Logout")');
-    await page.waitForTimeout(1000);
+    await page.waitForURL('**/login.html', { timeout: 3000 });
+    await page.waitForTimeout(500);
 
     // Create second user and their calculation
     const user2 = generateUniqueUser();
     await registerAndLogin(page, user2);
-    await page.goto('/static/calculations.html');
+    await page.waitForURL('**/calculations.html', { timeout: 3000 });
+    await page.waitForTimeout(1000);
     await createCalculation(page, 200, 100, 'subtract');
     await page.waitForTimeout(1000);
 

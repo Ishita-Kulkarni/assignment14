@@ -158,9 +158,9 @@ test.describe('Login - Positive Tests', () => {
     await page.fill('#password', user.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect (1 second according to the code)
-    await page.waitForURL('/', { timeout: 3000 });
-    expect(page.url()).toContain('/');
+    // Wait for redirect to calculations page
+    await page.waitForURL('**/calculations.html', { timeout: 3000 });
+    expect(page.url()).toContain('/calculations.html');
   });
 
   test('should show success state on valid inputs', async ({ page }) => {
@@ -343,13 +343,13 @@ test.describe('Login - Negative Tests', () => {
     await page.fill('#password', user.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect
-    await page.waitForURL('/', { timeout: 3000 });
+    // Wait for redirect to calculations
+    await page.waitForURL('**/calculations.html', { timeout: 3000 });
 
     // Try to go back to login page
     await page.goto('/static/login.html');
 
-    // Should show already logged in message and redirect
+    // Should show already logged in message and redirect to calculations
     await expect(page.locator('.alert-info')).toBeVisible();
     await expect(page.locator('.alert-info')).toContainText('already logged in');
   });
