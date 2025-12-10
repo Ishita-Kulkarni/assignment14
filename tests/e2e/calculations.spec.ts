@@ -526,7 +526,9 @@ test.describe('Calculations - Negative Scenarios', () => {
     await clearStorage(page);
     
     await page.goto('/static/calculations.html');
-    await page.waitForTimeout(2000);
+    
+    // Wait for redirect to login
+    await page.waitForURL('**/login.html', { timeout: 3000 });
 
     // Should be redirected to login
     expect(page.url()).toContain('/login.html');

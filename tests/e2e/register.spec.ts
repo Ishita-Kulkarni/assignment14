@@ -297,13 +297,13 @@ test.describe('Registration - Negative Tests', () => {
     await page.fill('#confirmPassword', user.password);
     await page.click('button[type="submit"]');
 
-    // Wait for redirect to home
-    await page.waitForURL('/', { timeout: 3000 });
+    // Wait for redirect to calculations
+    await page.waitForURL('**/calculations.html', { timeout: 3000 });
 
     // Try to go back to register page
     await page.goto('/static/register.html');
 
-    // Should show already logged in message and redirect
+    // Should show already logged in message and redirect to calculations
     await expect(page.locator('.alert-info')).toBeVisible();
     await expect(page.locator('.alert-info')).toContainText('already logged in');
   });
